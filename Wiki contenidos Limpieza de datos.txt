@@ -1,0 +1,8 @@
+Nombres de los componentes : Irene Rodríguez Merchán
+
+Descripción de los fiheros:
+
+1.- irodriguezme_P2.pdf: PDF con las respuestas a las preguntas
+2.- irodriguezme_P2.Rmd: Una carpeta con el código generado para analizar los datos. 
+4.- winequality_red.csv: El fichero CSV con los datos originales.  
+3.- Wine_data_clean.csv: El fichero CSV con los datos finales analizados.

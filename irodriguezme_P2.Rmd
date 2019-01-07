@@ -1,0 +1,449 @@
+---
+title: "Práctica 2: Limpieza y validación de datos"
+author: "Irene Rodríguez Merchán"
+date: "7 de enero 2019"
+output:
+  pdf_document:
+    toc: true
+    
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load_libraries, include=FALSE}
+
+library(knitr)
+library(nortest)
+library(ggcorrplot)
+library(ggplot2)
+library(gridExtra)
+library(stats)
+library(dplyr)
+
+```
+
+
+# 1 Detalles de de la actividad
+
+## 1.1 Descripción
+
+En esta práctica se elabora un caso práctico orientado a aprender a identificar los datos relevantes para un proyecto analítico y usar las herramientas de integración, limpieza, validación y análisis de las mismas. 
+
+## 1.2 Objetivos
+
+Los objetivos concretos de esta práctica son: 
+
+- Aprender a aplicar los conocimientos adquiridos y su capacidad de resolución de problemas en entornos nuevos o poco conocidos dentro de contextos más amplios o multidisciplinares. 
+
+- Saber identificar los datos relevantes y los tratamientos necesarios (integración, limpieza y validación) para llevar a cabo un proyecto analítico. 
+
+- Aprender a analizar los datos adecuadamente para abordar la información contenida en los datos. 
+
+- Identificar la mejor representación de los resultados para aportar conclusiones sobre el problema planteado en el proceso analítico. ??? Actuar con los principios éticos y legales relacionados con la manipulación de datos en función del ámbito de aplicación.
+
+- Desarrollar las habilidades de aprendizaje que les permitan continuar estudiando de un modo que tendrá que ser en gran medida autodirigido o autónomo. 
+
+- Desarrollar la capacidad de búsqueda, gestión y uso de información y recursos en el ámbito de la ciencia de datos. 
+
+## 1.3 Competencias 
+
+En esta práctica se desarrollan las siguientes competencias del Máster de Data Science: 
+
+- Capacidad de analizar un problema en el nivel de abstracción adecuado a cada situación y aplicar las habilidades y conocimientos adquiridos para abordarlo y resolverlo. 
+
+- Capacidad para aplicar las técnicas específicas de tratamiento de datos (integración, transformación, limpieza y validación) para su posterior análisis. 
+
+# 2 Descripción del dataset. ¿Por qué es importante y qué pregunta/problema pretende responder? 
+
+Este conjunto de datos está relacionado con las variantes rojas del vino portugués "Vinho Verde". Gracias a este dataset se puede relacionar la calidad de los vinos con los distintos componentes del mismo. Así, se puede determinar de una forma objetiva qué variables influyen más en la eleboración de vinos excelentes o de mala calidad.
+
+Sin duda se trata de una conjunto de gran importancia que permitirá a la industria del vino Portugués mejorar la calidad en su producción de vino tinto y aumentar las ventas a nivel nacional en internacional.  
+
+
+El dataset se ha obtenido a partir de Kaggle y está compuesto por las siguientes variables (columnas):
+
+- **Acidez fija**: la mayoría de los ácidos relacionados con el vino que son fijos o no volátiles no se evaporan fácilmente.
+
+- **Acidez volátil**:  cuando la cantidad de estos acidos es demasiado alta puede conducir a un sabor desagradable parecido al vinagre
+
+- ** Ácido cítrico **: se encuentra en pequeñas cantidades y puede agregar 'frescura' y sabor a los vinos.
+
+- **Azúcar residual**: se trata de la cantidad de azúcar restante después de que se detenga la fermentación.
+
+- **Cloruros**: la cantidad de sal en el vino.
+
+- **Dióxido de azufre libre**: la forma libre de SO2 existe en equilibrio entre SO2 molecular (como gas disuelto) e ión bisulfito; previene microbios
+Crecimiento y oxidación del vino.
+
+- **Dióxido de azufre total**:  en baja concentraciones, el SO2 es mayormente indetectable en el vino, pero en concentraciones superiores a 50 ppm, el SO2 se hace evidente en la nariz y en el sabor del vino.
+
+- **Densidad**: la densidad del agua es cercana a la del agua dependiendo de la porcentaje de alcohol y contenido de azúcar.
+
+- ** pH **: describe qué tan ácido o básico es un vino en una escala de 0 (muy ácido) a 14 (muy básico); La mayoría de los vinos están entre 3-4 en la escala de pH.
+
+- **Sulfatos**: un aditivo de vino  que actúa como antimicrobiano y antioxidante.
+
+- **Alcohol**: el porcentaje de alcohol del vino.
+
+- **Calidad**: variable de salida (basada en datos sensoriales, puntuación entre 0 y 10)
+
+# 3. Integración y selección de los datos de interés a analizar
+
+Primeramente se cargarán los datos y se realizará una descripción de los mismos.
+
+
+```{r carga_datos}
+# Carga del dataframe
+wineoriginal <- read.csv("winequality_red.csv", header = TRUE, sep = ",", dec = ".")
+```
+```{r copia_fichero}
+# Copia del fichero para trabajar en wine
+wine <- wineoriginal
+```
+
+Se muestra a continuación los primeros y últimos valores del fichero wine para ver si se ha cargado correctamente.
+
+```{r datos}
+# Primeros seis valores
+head(wine)
+# Últimos seis valores
+tail(wine)
+
+```
+
+Veamos si el tipo de cada variable es el correcto
+
+```{r tipos_variables}
+
+# tipo de dato de cada variable
+sapply(wine, function(x) class(x))
+```
+
+Todas las variables tienen clase numeric lo cual es correcto excepto quality que debería ser un factor y aparece como "integer".
+
+```{r cambio_variable_quality}
+
+#Tranformación de Quality de Integer  a Factor
+wine$quality <- factor(wine$quality, ordered = T)
+
+print(class(wine$quality))
+
+```
+
+Veamos a continuación un resumen de los datos
+
+```{r summary}
+summary(wine)
+qplot(quality, data = wine)
+```
+
+# 4. Limpieza de datos
+
+## 4.1 ¿Los datos contienen ceros o elementos vacíos? ¿Cómo gestionarías cada uno de estos casos?
+
+Veamos a continuación si el dataset tiene elementos vaciós
+
+```{r ceros_vacios}
+
+sapply(wine, function(x) sum(is.na(x)))
+```
+
+Por lo tanto, no se observan valores vacios.
+
+## 4.2. Identificación y tratamiento de valores extremos
+
+Primero vamos a realizar un boxplot para cada variable.
+
+```{r boxplots}
+
+oldpar = par(mfrow = c(2,6))
+for ( i in 1:10 ) {
+  boxplot(wine[[i]])
+  mtext(names(wine)[i], cex = 0.8, side = 1, line = 2)
+}
+par(oldpar)
+```
+
+En la imagen más arriba se observan valores extremos en cada una delas variables del dataset.
+
+Detectamos para cada variables cuales son los valores extremos.
+
+```{r valores_extremos_fixed.acidity}
+
+boxplot.stats(wine$fixed.acidity)$out
+hist(wine$fixed.acidity,main = "Distribution of Fixed acidity",xlab = "Fixed acidity",ylab = "Frequency",col = "blue")
+```
+La mayoría de los vinos tienen entre 6 y 10 de acidez fija. A partir de 8 ya se empieza a considerar alta. Se toma la decisión de no borrar estos valores extremos ya que explorando el dataset se observa que algunos vinos con acidez alta (15) son calificados con calidad 7. Por lo tanto, se decide dejarlos.
+
+```{r valores_extremos_volatile.acidity}
+boxplot.stats(wine$volatile.acidity)$out
+hist(wine$volatile.acidity,main = "Distribution of volatile.acidity",xlab = "Fixed acidity",ylab = "Frequency",col = "blue")
+```
+El máximo permitido por la organización internacional de la viña y el vino es es 20 por lo que aceptamos los valores extremos. 
+
+
+```{r valores_extremos_citric.acid}
+
+boxplot.stats(wine$citric.acid)$out
+hist(wine$citric.acid,main = "Distribution of citric.acid",xlab = "Fixed acidity",ylab = "Frequency",col = "blue")
+```
+El máximo permitido por la organización internacional de la viña y el vino es es 1 por lo que aceptamos este único valor extremo. 
+
+```{r valores_extremos_residual.sugar}
+
+boxplot.stats(wine$residual.sugar)$out
+hist(wine$residual.sugar,main = "Distribution of residual.sugar",xlab = "Fixed acidity",ylab = "Frequency",col = "blue")
+```
+
+```{r valores_extremos_chlorides}
+
+boxplot.stats(wine$chlorides)$out
+hist(wine$chlorides,main = "Distribution of chlorides",xlab = "Fixed acidity",ylab = "Frequency",col = "blue")
+```
+
+
+```{r valores_extremos_free.sulfur.dioxide}
+
+boxplot.stats(wine$free.sulfur.dioxide)$out
+hist(wine$free.sulfur.dioxide,main = "Distribution of free.sulfur.dioxide",xlab = "Fixed acidity",ylab = "Frequency",col = "blue")
+```
+
+```{r valores_extremos_total.sulfur.dioxide}
+
+boxplot.stats(wine$total.sulfur.dioxide)$out
+hist(wine$total.sulfur.dioxide,main = "Distribution of total.sulfur.dioxide",xlab = "Fixed acidity",ylab = "Frequency",col = "blue")
+```
+
+```{r valores_extremos_density}
+
+boxplot.stats(wine$density)$out
+hist(wine$density,main = "Distribution of density",xlab = "Fixed acidity",ylab = "Frequency",col = "blue")
+```
+
+```{r valores_extremos_pH}
+
+boxplot.stats(wine$pH)$out
+hist(wine$pH,main = "Distribution of pH",xlab = "Fixed acidity",ylab = "Frequency",col = "blue")
+```
+```{r valores_extremos_sulphates}
+
+boxplot.stats(wine$sulphates)$out
+hist(wine$sulphates,main = "Distribution of sulphates",xlab = "Fixed acidity",ylab = "Frequency",col = "blue")
+```
+```{r valores_extremos_alcohol}
+
+boxplot.stats(wine$alcohol)$out
+hist(wine$alcohol,main = "Distribution of alcohol",xlab = "Fixed acidity",ylab = "Frequency",col = "blue")
+
+```
+
+Se han contrastado los valores extremos con los limites proporcionados por la Organización Internaiconal de la viña y el vino (OIV). Aunque en alguna variable el valor extremo se encuentra muy al límite (por ejemplo el de ácido cítrico) se ha decido dejarlo y no considerarlos errores. Consideremos importante ver si algunos de esos valores afectan luego a la calificación proporcionada.
+
+# 5 Análisis de los datos. 
+
+
+Para realizar el análisis de los datos primeramente estudiaremos la correlación entre las variables.
+
+```{r correlacion}
+
+
+ggcorrplot(cor(wine[1:11]), hc.order = TRUE, type = "lower", lab = TRUE, insig = "blank")
+
+```
+
+Según la tabla de correlación más arriba. No se observan correlaciones muy altas por lo que no existe gran dependencia en las mismas.
+
+La correlación positiva más alta se encuentra entre las variables:
+
+- free.sulfur.dioxide y total.sulfur.dioxide
+
+- fixed.acidity y density
+
+- fixed.acidity y citric.acid
+
+
+
+La correlación negativa más alta se encuentra entre las variables:
+
+- fixed.acidity y pH
+
+- citric.acid y volatile.acidity
+
+- citric.acid y pH
+
+- density y alcohol
+
+Veamos ahora que variables está más relacionada con la calidad:
+
+
+```{r correlacionwitquality}
+
+# function to return correlation
+cor_test <- function(x, y) {
+  return(cor(as.numeric(x), as.numeric(y)))
+}
+# calculate normal correlations
+correlations <- c(
+  cor_test(wine$fixed.acidity, wine$quality),
+  cor_test(wine$volatile.acidity, wine$quality),
+  cor_test(wine$citric.acid, wine$quality),
+  cor_test(wine$residual.sugar, wine$quality),
+  cor_test(wine$chlorides, wine$quality),
+  cor_test(wine$free.sulfur.dioxide, wine$quality),
+  cor_test(wine$total.sulfur.dioxide, wine$quality),
+  cor_test(wine$density, wine$quality),
+  cor_test(wine$pH, wine$quality),
+  cor_test(wine$sulphates, wine$quality),
+  cor_test(wine$alcohol, wine$quality))
+names(correlations) <- c('fixed.acidity', 'volatile.acidity', 'citric.acid',
+                         'residual.sugar', 'chlordies', 'free.sulfur.dioxide',
+                         'total.sulfur.dioxide', 'density', 'pH',
+                         'sulphates', 'alcohol')
+print(correlations)
+```
+
+La variable con una mayor correlación con la calidad es alcohol.
+
+- alcohol ( 0.47)
+- volatile acidity (-0.39)
+- sulphates (log10) (0.25)
+- citric acid (0.23)
+
+Comprobemos si las variables cuantitativas provienen de una población distribuida normalmente. Para ello, utilizaremos la prueba de normalidad de Anderson Darling.
+Así, se comprueba que para que cada prueba se obtiene un p-valor superior al nivel de signi???cación pre???jado ?? = 0,05. Si esto se cumple, entonces se considera que variable en cuestión sigue una distribución normal.
+
+
+A continuación se va a crear la variable rating que clasificará a los vinos según sean malos (calidad menor de 5), normales o excelentes (calidad de 7 o 8).
+
+```{r rating}
+
+wine$rating <- ifelse(wine$quality < 5, 'malo', ifelse(
+  wine$quality < 7, 'normal', 'excelente'))
+wine$rating <- ordered(wine$rating,
+                       levels = c('malo', 'normal', 'excelente'))
+                       
+```
+Vamos a analizar los boxplot según la variable rating
+
+```{r boxplot_range}
+
+
+# Create a function to generate boxplots
+get_bivariate_boxplot <- function(x, y, ylab) {
+  return(ggplot(aes(factor(x), y), data = wine) +
+           geom_jitter( alpha = .3)  +
+           geom_boxplot( alpha = .5,color = 'blue')+
+           stat_summary(fun.y=mean, shape=1, col = 'red', 
+                        geom = 'point', size = 1) +
+           ylab(ylab))
+}
+
+
+grid.arrange(get_bivariate_boxplot(wine$rating, wine$fixed.acidity,
+                                   'fixed acidity'),
+             get_bivariate_boxplot(wine$rating, wine$volatile.acidity,
+                                   'volatile acidity'),
+             get_bivariate_boxplot(wine$rating, wine$citric.acid,
+                                   'citric acid'),
+             get_bivariate_boxplot(wine$rating, wine$residual.sugar,
+                                   'residual sugar'),
+             get_bivariate_boxplot(wine$rating, wine$chlorides,
+                                   'chlorides'),
+             get_bivariate_boxplot(wine$rating, wine$free.sulfur.dioxide,
+                                   'free sulf. dioxide'),
+             get_bivariate_boxplot(wine$rating,
+                                   wine$total.sulfur.dioxide,
+                                   'total sulf. dioxide'),
+             get_bivariate_boxplot(wine$rating, wine$density,
+                                   'density'),
+             get_bivariate_boxplot(wine$rating, wine$pH,
+                                   'pH'),
+             get_bivariate_boxplot(wine$rating, wine$sulphates,
+                                   'sulphates'),
+             get_bivariate_boxplot(wine$rating, wine$alcohol,
+                                   'alcohol'),
+             ncol = 3)
+
+
+
+```
+
+Según los gráficos más arriba, se observa que los vinos excelentes tienen las siguientes características: 
+
+- Más alto el % de alcohol
+- Más alto la cantidad de sulfatos
+- Más alta la cantidad de acidez fija, acidez cítrica y más baja la acidez volátil
+
+
+Como la variable alcohol es una de las que más afecta a la calidad vamos a realizarel test de Shapiro para comprobar la normalidad 
+
+```{r normalidad}
+# Shapiro Test para comprobar normalidad 
+shapiro.test(wine$alcohol)
+qqnorm(wine$alcohol) 
+qqline(wine$alcohol)
+
+```
+ En el test de Shapiro-Wilk, cuando Pr(D)es mayor o igual a ?? entonces se acepta la hipótesis nula, existe normalidad. El valor p del test de Shapiro ha dado 2.2e-16. Por tanto, se rechaza la hipótesis nula de normalidad. Asumimos que la muestra sigue una que no es normal.
+ No obstante, la condición de normalidad se debe cumplir para cada grupo. Por ello, se debe aplicar la prueba de normalidad a cada grupo.
+
+```{r normalidad_cada_grupo}
+# Shapiro Test para comprobar normalidad 
+DS <- summarize( group_by(wine, rating), n=length(alcohol), p.shapiro=shapiro.test(alcohol)[[2]]) 
+DS 
+
+```
+
+Tampoco se cumple la condición de normalidad para cada uno de los grupos.
+Veamos la igualdad de varianzas entre grupos
+
+```{r comparacion}
+pairwise.t.test(wine$alcohol, wine$rating, p.adj = "none")
+```
+
+Por lo tanto la variable alcohol de los vinos excelentes presentan diferencias significativas con respecto al resto de categorías.
+
+
+Una vez que hemos realizado sobre el conjunto de datos inicial los procedimientos de integración, validación y limpieza anteriores, procedemos a guardar estos en un nuevo ???chero denominado wine_data_clean.csv: 
+
+```{r csv_clean}
+# Exportación de los datos limpios en .csv 
+write.csv(wine, "Wine_data_clean.csv")
+
+```
+
+# 5 Conclusiones 
+
+A través del estudio se ha concluido que altos niveles de alcohol en el vino contribuye a una buena calidad del vinos. Además añadiendo sulfatos o ácido cítrico contribuyen positivamente también a una buena calidad. Por el contrario, añadir acidos volátiles influyen negativamente.
+
+
+# 6 Representación gráfica de los resutlados
+
+A lo largo del presente trabajo se han realizado distintas represetaciones que han ayudado a identificar los resultados obtenidos. Sin embargo, el siguiente gráfico resume de una forma muy clara, como la variabel acohol influye en la calidad de los vinos portugueses.
+
+```{r echo=FALSE, Plot_Two}
+ggplot(data = wine, aes(x = factor(quality), y = alcohol, fill = rating)) +
+  geom_jitter(alpha = .3)  +
+  geom_boxplot(alpha = .5, color = 'blue')+
+  stat_summary(fun.y = "mean", 
+               geom = "point", 
+               color = "red", 
+               size = 1) +
+  geom_hline(yintercept = 11, linetype="dashed") +
+  labs(x = "Quality",
+       y = "Alcohol (% by Volume)",
+       title = "Efecto del acohol en la calidad del vino")
+cor.test(wine$alcohol, as.numeric(wine$quality))
+by(wine$alcohol, wine$rating, summary)
+
+```
+
+
+
+
+
+
+
+
